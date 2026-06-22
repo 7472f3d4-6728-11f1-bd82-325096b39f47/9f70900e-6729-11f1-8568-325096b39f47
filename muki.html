@@ -737,6 +737,31 @@ function pickWords(c,deck,count,shuffleOn){
 }
 function hasNextTraining(c){ return chapterCards(c).some(x=>profOf(x.id)<=1); }
 
+/* ---------- scope helpers（章詳細=単章 / おさらい=全章 を“同じUI”で扱う共通化） ---------- */
+/* reviewAll のときは全章を対象スコープにし、章詳細と同じ deck/出題ロジックをそのまま再利用する。
+   各問題の id（章コード#idx）は元のまま保持＝習熟度・SRS・統計のロジックは一切変更しない。 */
+function scopeChapters(){ return reviewAll ? DATA.chapters : (curChapter ? [curChapter] : []); }
+function scopeDeckCount(key){ return scopeChapters().reduce((s,c)=>s+deckCount(c,key),0); }
+function scopePick(deck,count,shuffleOn){
+  let pool=[];
+  scopeChapters().forEach(c=>{ pickWords(c,deck,0,false).forEach(x=>pool.push({q:x.q,idx:x.idx,id:x.id,code:c.code})); });
+  pool=shuffleOn?shuffle(pool):pool;
+  if(count>0&&pool.length>count) pool=pool.slice(0,count);
+  return pool;
+}
+function scopeQuestions(){ const out=[]; scopeChapters().forEach(c=>c.questions.forEach((q,idx)=>out.push({q,idx,code:c.code}))); return out; }
+function scopeDonutSVG(size){
+  let cts=[0,0,0,0,0],total=0;
+  scopeChapters().forEach(c=>c.questions.forEach((q,idx)=>{ cts[profOf(wordId(c.code,idx))]++; total++; }));
+  if(!total) return "<div style=\"width:"+size+"px;height:"+size+"px;border-radius:50%;background:#d0d0d4;display:flex;align-items:center;justify-content:center;font-size:"+Math.round(size*0.34)+"px;\">🔁</div>";
+  const DCOL=["#d0d0d4","#669efe","#8ed832","#58c568","#12a737"], ORDER=[4,3,2,1,0];
+  let deg=0,stops="";
+  ORDER.forEach(p=>{ const n=cts[p]; if(n>0){ const end=deg+n/total*360; stops+=DCOL[p]+" "+deg.toFixed(1)+"deg "+end.toFixed(1)+"deg,"; deg=end; }});
+  stops=stops.replace(/,$/,"");
+  const hole=Math.round(size*0.60);
+  return "<div style=\"width:"+size+"px;height:"+size+"px;border-radius:50%;background:conic-gradient("+stops+");display:flex;align-items:center;justify-content:center;flex-shrink:0;\"><div style=\"width:"+hole+"px;height:"+hole+"px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:"+Math.round(size*0.30)+"px;\">🔁</div></div>";
+}
+
 /* ---------- ring ---------- */
 function masteryPct(c){ let sum=0; c.questions.forEach((q,idx)=>sum+=profOf(wordId(c.code,idx))); const max=c.questions.length*4; return max?Math.round(sum/max*100):0; }
 function ringSVG(pct,size,centerText,centerSub){
@@ -812,10 +837,10 @@ function renderHome(){
   const cta=document.getElementById("reviewCta");
   let reviewCount=0;
   DATA.chapters.forEach(c2=>c2.questions.forEach((q,idx)=>{const s=peek(wordId(c2.code,idx));if((s.c+s.w>=1)&&(s.w>=s.c))reviewCount++;}));
-  if(reviewCount>0){ cta.innerHTML=`<div class="review-cta" id="reviewCtaBtn"><span style="font-size:20px">🔁</span>
-      <span><div class="rc-t">おさらいの時間です</div><div class="rc-s">苦手問題 ${reviewCount} 問</div></span>
+  cta.innerHTML=`<div class="review-cta" id="reviewCtaBtn"><span style="font-size:20px">🔁</span>
+      <span><div class="rc-t">おさらいの時間です</div><div class="rc-s">${reviewCount>0?`苦手問題 ${reviewCount} 問`:`全範囲から復習`}</div></span>
       <span class="rc-go">›</span></div>`;
-    document.getElementById("reviewCtaBtn").onclick=openReview; } else cta.innerHTML="";
+    document.getElementById("reviewCtaBtn").onclick=openReview;
   const seg=document.getElementById("seg");
   seg.innerHTML=DATA.parents.map(p=>`<button class="${p===activeParent?'on':''}" data-p="${esc(p)}">${esc(p)}</button>`).join("");
   seg.querySelectorAll("button").forEach(b=>b.onclick=()=>{ activeParent=b.dataset.p; renderHome(); });
@@ -842,17 +867,18 @@ function openDetail(code){
 }
 function renderDecks(){
   const box=document.getElementById("decks");
-  box.innerHTML=DECKS.map(d=>{ const n=deckCount(curChapter,d.key); const dis=(d.key!=="all"&&n===0);
+  box.innerHTML=DECKS.map(d=>{ const n=scopeDeckCount(d.key); const dis=(d.key!=="all"&&n===0);
     return `<button class="deck ${d.key===curDeck?'on':''} ${dis?'dis':''}" data-deck="${d.key}">
       <div class="di">${d.icon}</div><div class="dl">${d.label}</div><div class="dn">${n}問</div></button>`; }).join("");
   box.querySelectorAll(".deck").forEach(b=>b.onclick=()=>{ const d=DECKS.find(x=>x.key===b.dataset.deck);
     if(b.classList.contains("dis"))return; curDeck=b.dataset.deck; renderDecks(); });
   const d=DECKS.find(x=>x.key===curDeck);
-  document.getElementById("deckInfo").innerHTML=`<div class="dit">${d.icon} ${esc(d.info[0])}</div><div class="dis2">${esc(d.info[1])}</div>`;
-  const n=deckCount(curChapter,curDeck);
+  const info1=(reviewAll&&curDeck==="all")?"全範囲の全ての問題を出題します":d.info[1];
+  document.getElementById("deckInfo").innerHTML=`<div class="dit">${d.icon} ${esc(d.info[0])}</div><div class="dis2">${esc(info1)}</div>`;
+  const n=scopeDeckCount(curDeck);
   const sb=document.getElementById("startBtn");
   if(curDeck!=="all"&&n===0){ sb.disabled=true; sb.textContent="この範囲は0問です"; }
-  else{ sb.disabled=false; sb.textContent=settings.train?"特訓スタート":"スタート（"+n+"問）"; }
+  else{ sb.disabled=false; sb.textContent=(settings.train&&!reviewAll)?"特訓スタート":"スタート（"+n+"問）"; }
   /* ③ PC横スクロール: ホイール・ドラッグ対応 */
   const _dk=document.getElementById("decks");
   _dk.onwheel=e=>{e.preventDefault();_dk.scrollLeft+=e.deltaY+e.deltaX;};
@@ -871,10 +897,10 @@ document.getElementById("startBtn").onclick=startSession;
 document.getElementById("qlistBtn").onclick=renderQlist;
 document.getElementById("qlistBack").onclick=()=>show("detailScreen");
 function renderQlist(){
-  const chap=curChapter; if(!chap)return;
-  document.getElementById("qlistTitle").textContent=chap.name+"（"+chap.questions.length+"問）";
+  const items=scopeQuestions(); if(!items.length)return;
+  document.getElementById("qlistTitle").textContent=reviewAll?("おさらい（全範囲 "+items.length+"問）"):(curChapter.name+"（"+curChapter.questions.length+"問）");
   const scroll=document.getElementById("qlistScroll");
-  scroll.innerHTML=chap.questions.map((q,i)=>"<div class=\"qlist-item\"><div class=\"ql-num\">Q"+(i+1)+"</div><div class=\"ql-q\">"+esc(q.q)+"</div><div class=\"ql-a-lbl\">答え</div><div class=\"ql-a\">"+esc(q.answer)+"</div>"+(q.explain?"<div class=\"ql-exp\"><div class=\"ql-exp-lbl\">解説</div>"+esc(q.explain)+"</div>":"")+"</div>").join("");
+  scroll.innerHTML=items.map((x,i)=>{ const q=x.q; return "<div class=\"qlist-item\"><div class=\"ql-num\">Q"+(i+1)+"</div><div class=\"ql-q\">"+esc(q.q)+"</div><div class=\"ql-a-lbl\">答え</div><div class=\"ql-a\">"+esc(q.answer)+"</div>"+(q.explain?"<div class=\"ql-exp\"><div class=\"ql-exp-lbl\">解説</div>"+esc(q.explain)+"</div>":"")+"</div>"; }).join("");
   show("qlistScreen");
 }
 
@@ -887,7 +913,16 @@ function reviewTargets(){
   }));
   return out;
 }
-function openReview(){ renderReviewConfirm(); show("reviewConfirmScreen"); }
+/* おさらい＝章詳細(#detailScreen)を「全範囲モード」で開く（同じUI/コードを再利用）。
+   出題対象の判定は deck ロジックそのまま＝全章を対象に集計・出題する。 */
+function openReview(){
+  reviewAll=true; curChapter=null; curDeck="all";
+  document.getElementById("detailName").textContent="おさらい";
+  document.getElementById("detailParent").textContent="全範囲";
+  document.getElementById("detailRing").innerHTML=scopeDonutSVG(104);
+  setMode(settings.mode||"quiz");
+  renderDecks(); show("detailScreen");
+}
 function renderReviewConfirm(){
   const t=reviewTargets();
   document.getElementById("rcCount").textContent=t.length;
@@ -936,15 +971,14 @@ document.querySelectorAll(".st-p,.st-m").forEach(btn=>btn.onclick=()=>{
 function bindToggle(id,key){ document.getElementById(id).onchange=e=>{ settings[key]=e.target.checked; saveSettings(); }; }
 bindToggle("optHide","hide"); bindToggle("optAuto","auto"); bindToggle("optTrain","train");
 bindToggle("optSound","sound"); bindToggle("optShuffle","shuffle"); bindToggle("optResume","resume");
-document.getElementById("setBack").onclick=()=>{ if(curChapter){ renderDecks(); show("detailScreen"); } else { renderHome(); show("homeScreen"); } };
+document.getElementById("setBack").onclick=()=>{ if(curChapter||reviewAll){ renderDecks(); show("detailScreen"); } else { renderHome(); show("homeScreen"); } };
 
 /* ---------- SESSION ---------- */
 let S=null;
 function startSession(){
   let cards,chapter;
-  if(reviewAll){ cards=[];
-    DATA.chapters.forEach(c=>c.questions.forEach((q,idx)=>{ const id=wordId(c.code,idx); const s=peek(id); if((s.c+s.w>=1)&&(s.w>=s.c)) cards.push({q,idx,id,code:c.code}); }));
-    cards=shuffle(cards); if(settings.count>0) cards=cards.slice(0,settings.count); chapter=null;
+  if(reviewAll){
+    cards=scopePick(curDeck,settings.count,settings.shuffle); chapter=null;
   } else { chapter=curChapter;
     cards=pickWords(chapter,curDeck,settings.count,settings.shuffle).map(x=>({q:x.q,idx:x.idx,id:x.id,code:chapter.code}));
     if(settings.resume&&!settings.shuffle){ const r=progress.resume[chapter.code+":"+curDeck];
