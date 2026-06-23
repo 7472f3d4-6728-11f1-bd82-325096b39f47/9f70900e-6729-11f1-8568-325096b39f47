@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>無機化学</title>
 <meta name="theme-color" content="#00c1cc">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="muki-icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="無機化学">
 <style>
   :root{
     --bg:#fff; --paper:#f4f4f6; --ink:#2b2b2b; --sub:#9a9a9a; --line:#eee;
@@ -1159,6 +1165,14 @@ document.getElementById("res2Close").onclick=goHome;
 /* ---------- boot ---------- */
 renderHome();
 initCloud();
+/* ---------- PWA Service Worker 登録 ---------- */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("./sw.js")
+      .then(r=>console.log("[PWA] SW registered:",r.scope))
+      .catch(e=>console.warn("[PWA] SW registration failed:",e));
+  });
+}
 </script>
 </body>
 </html>
