@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>無機化学</title>
 <meta name="theme-color" content="#00c1cc">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="muki_manifest.json">
 <link rel="apple-touch-icon" href="muki-icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -353,6 +353,31 @@
   .dot-vague{background:#8ed832;}
   .dot-good{background:#58c568;}
   .dot-perfect{background:#12a737;}
+
+  /* ---------- PC（広い画面＋マウス）最適化: 無機のみ／スマホ表示は不変 ---------- */
+  @media (min-width: 760px) and (pointer: fine) {
+    .app { max-width: 900px; }
+    /* ホーム: 章一覧を2カラム化して横幅を有効活用 */
+    .home-head { padding: 24px 30px 18px; }
+    .review-cta { margin: 14px 30px 0; }
+    .seg { padding: 18px 30px 6px; }
+    .chapters {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      align-content: start;
+      padding: 8px 30px 40px;
+    }
+    /* 学習・設定・結果系は読みやすい幅で中央寄せ（横伸び防止） */
+    .top-bar, .timer-bar, .quiz-body, .flash-body,
+    .detail-top, .detail-scroll, .detail-foot,
+    .set-scroll, .qlist-scroll, .result {
+      max-width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+    }
+  }
 </style>
 </head>
 <body>
@@ -365,7 +390,7 @@
         <div class="kicker">Inorganic Chemistry</div>
         <h1>無機化学</h1>
         <div class="sync-bar"><span class="sync-status" id="syncStatus"></span>
-          <button class="dark-toggle" id="darkToggle">🌙</button><button class="sync-btn" id="uidBtn">☁ 同期ID</button></div>
+          <button class="dark-toggle" id="darkToggle">🌙</button></div>
       </div>
 
       <div id="reviewCta"></div>
@@ -631,7 +656,7 @@ function bumpDaily(){
 function dailyCount(){ return (progress.daily&&progress.daily.date===todayStr())?progress.daily.count:0; }
 
 /* ---------- cloud sync ---------- */
-function getUid(){ try{ return localStorage.getItem(UID_KEY)||""; }catch(e){ return ""; } }
+function getUid(){ return "owner"; }   /* 単一ユーザー固定ID＝同期ID入力を廃止し常時自動同期 */
 function setUid(v){ try{ localStorage.setItem(UID_KEY,v); }catch(e){} }
 function syncStatus(t,kind){ const el=document.getElementById("syncStatus"); if(!el)return;
   el.textContent=t||""; if(kind==="ok"){ clearTimeout(syncStatus._t); syncStatus._t=setTimeout(()=>el.textContent="",1600); } }
@@ -680,8 +705,9 @@ async function cloudPull(){ const uid=getUid(); if(!uid)return false; syncStatus
       syncStatus("読み込み完了 ✓","ok"); return true; }
     syncStatus("","ok"); return false; }
   catch(e){ syncStatus("オフライン","warn"); return false; } }
-async function initCloud(){ window.addEventListener("online",()=>{ if(getUid())doPush(); });
-  if(!getUid())return; if(await cloudPull()) renderHome(); }
+async function initCloud(){ window.addEventListener("online",()=>{ doPush(); });
+  if(await cloudPull()) renderHome();
+  doPush(); /* 起動時にローカルの全履歴をクラウドへ即アップ */ }
 function openUidDialog(){ const cur=getUid();
   const id=window.prompt("同期IDを決めてください（他の端末で同じIDにすると進捗が共有されます）。\n例: mirin-x7k2p9\n\n※このアプリ専用の保存枠です。",cur||"");
   if(id===null)return; const v=id.trim(); if(!v)return; setUid(v);
@@ -894,7 +920,7 @@ document.querySelectorAll("#modeRow button").forEach(b=>b.onclick=()=>{ setMode(
 document.getElementById("detailClose").onclick=()=>{ renderHome(); show("homeScreen"); };
 document.getElementById("grip").onclick=()=>{ renderHome(); show("homeScreen"); };
 document.getElementById("settingsLink").onclick=()=>{ syncSettingsUI(); show("settingsScreen"); };
-document.getElementById("uidBtn").onclick=openUidDialog;
+/* 同期IDボタンは廃止（固定IDで常時自動同期） */
 document.getElementById("startBtn").onclick=startSession;
 document.getElementById("qlistBtn").onclick=renderQlist;
 document.getElementById("qlistBack").onclick=()=>show("detailScreen");

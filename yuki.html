@@ -365,7 +365,7 @@
         <div class="kicker">Organic Chemistry</div>
         <h1>有機化学</h1>
         <div class="sync-bar"><span class="sync-status" id="syncStatus"></span>
-          <button class="dark-toggle" id="darkToggle">🌙</button><button class="sync-btn" id="uidBtn">☁ 同期ID</button></div>
+          <button class="dark-toggle" id="darkToggle">🌙</button></div>
       </div>
 
       <div id="reviewCta"></div>
@@ -594,7 +594,7 @@ function bumpDaily(){
 function dailyCount(){ return (progress.daily&&progress.daily.date===todayStr())?progress.daily.count:0; }
 
 /* ---------- cloud sync ---------- */
-function getUid(){ try{ return localStorage.getItem(UID_KEY)||""; }catch(e){ return ""; } }
+function getUid(){ return "owner"; }   /* 単一ユーザー固定ID＝同期ID入力を廃止し常時自動同期 */
 function setUid(v){ try{ localStorage.setItem(UID_KEY,v); }catch(e){} }
 function syncStatus(t,kind){ const el=document.getElementById("syncStatus"); if(!el)return;
   el.textContent=t||""; if(kind==="ok"){ clearTimeout(syncStatus._t); syncStatus._t=setTimeout(()=>el.textContent="",1600); } }
@@ -643,8 +643,9 @@ async function cloudPull(){ const uid=getUid(); if(!uid)return false; syncStatus
       syncStatus("読み込み完了 ✓","ok"); return true; }
     syncStatus("","ok"); return false; }
   catch(e){ syncStatus("オフライン","warn"); return false; } }
-async function initCloud(){ window.addEventListener("online",()=>{ if(getUid())doPush(); });
-  if(!getUid())return; if(await cloudPull()) renderHome(); }
+async function initCloud(){ window.addEventListener("online",()=>{ doPush(); });
+  if(await cloudPull()) renderHome();
+  doPush(); /* 起動時にローカルの全履歴をクラウドへ即アップ */ }
 function openUidDialog(){ const cur=getUid();
   const id=window.prompt("同期IDを決めてください（他の端末で同じIDにすると進捗が共有されます）。\n例: mirin-x7k2p9\n\n※このアプリ専用の保存枠です。",cur||"");
   if(id===null)return; const v=id.trim(); if(!v)return; setUid(v);
@@ -857,7 +858,7 @@ document.querySelectorAll("#modeRow button").forEach(b=>b.onclick=()=>{ setMode(
 document.getElementById("detailClose").onclick=()=>{ renderHome(); show("homeScreen"); };
 document.getElementById("grip").onclick=()=>{ renderHome(); show("homeScreen"); };
 document.getElementById("settingsLink").onclick=()=>{ syncSettingsUI(); show("settingsScreen"); };
-document.getElementById("uidBtn").onclick=openUidDialog;
+/* 同期IDボタンは廃止（固定IDで常時自動同期） */
 document.getElementById("startBtn").onclick=startSession;
 document.getElementById("qlistBtn").onclick=renderQlist;
 document.getElementById("qlistBack").onclick=()=>show("detailScreen");

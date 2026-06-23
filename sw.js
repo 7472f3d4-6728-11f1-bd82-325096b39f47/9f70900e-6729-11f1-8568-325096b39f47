@@ -1,6 +1,6 @@
 /* 無機化学 — PWA Service Worker */
-const CACHE_NAME = 'muki-pwa-v1';
-const ASSETS = ['./muki.html', './manifest.json'];
+const CACHE_NAME = 'muki-pwa-v2';
+const ASSETS = ['./muki.html', './muki_manifest.json'];
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     try { const c = await caches.open(CACHE_NAME); await Promise.all(ASSETS.map(u => c.add(u).catch(()=>{}))); } catch(_) {}
