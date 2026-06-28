@@ -190,11 +190,23 @@
     font-size:13px;color:#444;white-space:pre-wrap;margin-top:13px;}
   .explain.show{display:block;animation:fade .2s;}
   .explain .ex-h{font-weight:800;font-size:12px;margin-bottom:4px;}
+  .memo{display:none;margin-top:11px;}
+  .memo.show{display:block;animation:fade .2s;}
+  .memo-h{display:flex;align-items:center;gap:6px;font-weight:800;font-size:12px;color:var(--accent-ink);margin-bottom:5px;}
+  .memo-status{margin-left:auto;font-weight:600;font-size:11px;color:var(--sub);}
+  .memo-ta{width:100%;box-sizing:border-box;min-height:46px;resize:vertical;background:#fff;border:1.5px solid var(--line);
+    border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.5;color:#333;font-family:inherit;-webkit-appearance:none;}
+  .memo-ta:focus{outline:none;border-color:var(--accent-deep);}
+  .memo-ta::placeholder{color:#b8b8bf;}
+  .memo-clear{margin-top:6px;background:none;border:none;color:var(--sub);font-size:12px;font-weight:700;padding:3px 2px;text-decoration:underline;}
   .quiz-foot{margin-top:auto;padding-top:13px;}
   .next-btn{display:none;width:100%;background:var(--accent);color:var(--accent-ink);border:none;border-radius:14px;padding:16px;
     font-size:16px;font-weight:800;box-shadow:0 5px 16px var(--accent-glow);}
   .next-btn.show{display:block;}
   .next-btn:active{transform:scale(.99);}
+  .dk-btn{display:none;width:100%;background:transparent;color:var(--sub);border:1.5px solid var(--line);border-radius:14px;padding:16px;font-size:16px;font-weight:800;}
+  .dk-btn.show{display:block;}
+  .dk-btn:active{transform:scale(.99);}
 
   /* ---------- FLASHCARD ---------- */
   .flash-body{flex:1;display:flex;flex-direction:column;padding:8px 18px 18px;}
@@ -267,7 +279,7 @@
   .empty{padding:26px;text-align:center;color:var(--sub);font-size:13px;}
 
   /* ---------- DARK MODE ---------- */
-  body.dark{--bg:#12131a;--paper:#1c1d28;--ink:#f0f0f5;--sub:#8888a8;--line:#2c2d40;--accent:#00c1cc;--accent2:#29f4ff;--accent-deep:#00c1cc;--accent-soft:#0a2a2e;--accent-ink:#7ce7ed;--accent-glow:rgba(0,193,204,.20);--peach:#1e1a14;--p0:#555;--p1:#2a5cb0;--p2:#3a8060;--p3:#2a7a3a;--p4:#107a3a;--ok:#2aad6a;--ok-soft:#0e2a1e;--ng:#c03030;--ng-soft:#2a0e0e;--shadow:0 2px 4px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.6);}
+  body.dark{--bg:#12131a;--paper:#1c1d28;--ink:#f0f0f5;--sub:#8888a8;--line:#2c2d40;--accent:#6db020;--accent2:#b8ef60;--accent-deep:#6db020;--accent-soft:#18260c;--accent-ink:#9BDE40;--accent-glow:rgba(109,176,32,.20);--peach:#1e1a14;--p0:#555;--p1:#2a5cb0;--p2:#3a8060;--p3:#2a7a3a;--p4:#107a3a;--ok:#2aad6a;--ok-soft:#0e2a1e;--ng:#c03030;--ng-soft:#2a0e0e;--shadow:0 2px 4px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.6);}
   body.dark .app{background:var(--bg);}
   body.dark .lesson{background:var(--bg);border-color:var(--line);}
   body.dark .lesson-name{color:var(--ink);}
@@ -298,6 +310,8 @@
   body.dark .pbar{background:var(--line);}
   body.dark .timer-bar{background:var(--line);}
   body.dark .explain{background:var(--paper);border-color:var(--line);color:var(--ink);}
+  body.dark .memo-ta{background:var(--paper);border-color:var(--line);color:var(--ink);}
+  body.dark .memo-ta::placeholder{color:#6a6a72;}
   body.dark .fcard{background:var(--bg);border-color:var(--line);}
   body.dark .face-text{color:var(--ink);}
   body.dark .fexp{color:var(--sub);}
@@ -447,7 +461,12 @@
       </div>
       <div class="opts" id="quizOpts"></div>
       <div class="explain" id="quizExplain"></div>
-      <div class="quiz-foot"><button class="next-btn" id="quizNext">次へ →</button></div>
+      <div class="memo" id="quizMemo">
+        <div class="memo-h">📝 メモ<span class="memo-status" id="quizMemoStatus"></span></div>
+        <textarea class="memo-ta" id="quizMemoTa" rows="2" placeholder="この問題のメモ（自動保存）。覚え方・関連事項・間違えた理由など自由に。"></textarea>
+        <button class="memo-clear" id="quizMemoClear">メモを削除</button>
+      </div>
+      <div class="quiz-foot"><button class="dk-btn" id="quizDk">わからない</button><button class="next-btn" id="quizNext">次へ →</button></div>
     </div>
   </div>
 
@@ -550,7 +569,7 @@ let settings = loadSettings();
 function loadProgress(){
   let o; try{ o=JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
   if(!o||typeof o!=="object") o={};
-  o.words=o.words||{}; o.stocked=o.stocked||{}; o.resume=o.resume||{}; o.daily=o.daily||{date:todayStr(),count:0};
+  o.words=o.words||{}; o.stocked=o.stocked||{}; o.resume=o.resume||{}; o.daily=o.daily||{date:todayStr(),count:0}; o.memos=o.memos||{};
   return o;
 }
 function saveProgress(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(progress)); }catch(e){} cloudPush(); }
@@ -560,6 +579,30 @@ function loadSettings(){
   return Object.assign(def,o||{});
 }
 function saveSettings(){ try{ localStorage.setItem(SET_KEY,JSON.stringify(settings)); }catch(e){} }
+
+/* ---------- メモ（問題ごと・自由入力・複数行・自動保存・クラウド同期） ---------- */
+/* メモは progress.memos[問題ID] = {text,t} で保持。問題IDは学習進捗と同じ wordId(章コード#idx)。
+   saveProgress 経由なので localStorage に永続化され、既存のクラウド同期にもそのまま乗る（端末間でも保持）。 */
+function getMemo(id){ const m=progress.memos&&progress.memos[id]; return (m&&m.text)||""; }
+function setMemo(id,text){
+  progress.memos=progress.memos||{}; text=text||"";
+  if(text.trim()===""){ if(progress.memos[id]) delete progress.memos[id]; else return; }   /* 空＝メモ削除 */
+  else progress.memos[id]={text:text,t:Date.now()};
+  saveProgress();
+}
+let _memoPending=null,_memoTimer=null;
+function flushMemo(){ if(_memoPending){ const p=_memoPending; _memoPending=null; clearTimeout(_memoTimer); setMemo(p.id,p.text); } }
+function setupMemo(id){
+  const wrap=document.getElementById("quizMemo"), ta=document.getElementById("quizMemoTa"), st=document.getElementById("quizMemoStatus");
+  flushMemo();                                 /* 直前の問題の未保存分を確定してから切替 */
+  ta.value=getMemo(id); wrap.classList.add("show"); st.textContent="";
+  ta.oninput=()=>{ _memoPending={id:id,text:ta.value}; clearTimeout(_memoTimer);
+    _memoTimer=setTimeout(()=>{ flushMemo(); st.textContent="保存しました ✓";
+      setTimeout(()=>{ if(st.textContent==="保存しました ✓") st.textContent=""; },1400); },400); };
+  ta.onblur=flushMemo;
+  document.getElementById("quizMemoClear").onclick=()=>{ ta.value=""; _memoPending=null; clearTimeout(_memoTimer); setMemo(id,""); ta.focus();
+    st.textContent="削除しました"; setTimeout(()=>{ if(st.textContent==="削除しました") st.textContent=""; },1400); };
+}
 
 function wordId(code,idx){ return code+"#"+idx; }
 function peek(id){
@@ -617,11 +660,17 @@ async function doPush(){ const uid=getUid(); if(!uid)return; if(pushing){ cloudP
    各レコード {p,c,w,due,t} 自体は変更しない＝習熟度判定・SRS・学習履歴のロジックは不変。 */
 function mergeProgress(local, cloud){
   local=local||{}; cloud=cloud||{};
-  const out={ words:{}, stocked:{}, resume:{}, daily:null };
+  const out={ words:{}, stocked:{}, resume:{}, daily:null, memos:{} };
   const lw=local.words||{}, cw=cloud.words||{};
   new Set([...Object.keys(lw),...Object.keys(cw)]).forEach(id=>{
     const a=lw[id], b=cw[id];
     out.words[id]=(a&&b)?(((b.t||0)>(a.t||0))?b:a):(a||b);
+  });
+  /* メモも問題ごとに最終更新 t が新しい方を採用（端末をまたいでもメモが消えない・上書きされない） */
+  const lm=local.memos||{}, cm=cloud.memos||{};
+  new Set([...Object.keys(lm),...Object.keys(cm)]).forEach(id=>{
+    const a=lm[id], b=cm[id];
+    out.memos[id]=(a&&b)?(((b.t||0)>(a.t||0))?b:a):(a||b);
   });
   out.stocked=Object.assign({}, cloud.stocked||{}, local.stocked||{});
   out.resume =Object.assign({}, cloud.resume||{},  local.resume||{});
@@ -638,7 +687,7 @@ async function cloudPull(){ const uid=getUid(); if(!uid)return false; syncStatus
       /* クラウドが空でローカルに学習結果がある場合は、絶対にローカルを消さない。逆にローカルをクラウドへ上げる。 */
       if(cloudEmpty&&!localEmpty){ syncStatus("","ok"); doPush(); return false; }
       progress=mergeProgress(progress, cloud);
-      progress.words=progress.words||{}; progress.stocked=progress.stocked||{}; progress.resume=progress.resume||{}; progress.daily=progress.daily||{date:todayStr(),count:0};
+      progress.words=progress.words||{}; progress.stocked=progress.stocked||{}; progress.resume=progress.resume||{}; progress.daily=progress.daily||{date:todayStr(),count:0}; progress.memos=progress.memos||{};
       try{ localStorage.setItem(LS_KEY,JSON.stringify(progress)); }catch(e){}
       syncStatus("読み込み完了 ✓","ok"); return true; }
     syncStatus("","ok"); return false; }
@@ -951,7 +1000,7 @@ function startSession(){
       if(r>0&&r<cards.length) cards=cards.slice(r).concat(cards.slice(0,r)); }
   }
   if(!cards.length){ alert("出題できる問題がありません。"); return; }
-  S={chapter,deck:curDeck,reviewAll,mode:settings.mode,cards,i:0,correct:0,streak:0,answered:false,
+  S={chapter,deck:curDeck,reviewAll,mode:settings.mode,cards,i:0,correct:0,dontknow:0,streak:0,answered:false,
      trans:[],round:1,trainAll:settings.train&&!reviewAll&&chapter,t0:Date.now()};
   if(S.mode==="quiz") runQuiz(); else runFlash();
 }
@@ -980,8 +1029,11 @@ function renderQuiz(){
     document.getElementById("cover").onclick=()=>renderOptions(opts,card); }
   else renderOptions(opts,card);
   const ex=document.getElementById("quizExplain"); ex.classList.remove("show"); ex.innerHTML="";
+  flushMemo(); document.getElementById("quizMemo").classList.remove("show");   /* メモ欄は解答後に表示 */
   const nb=document.getElementById("quizNext"); nb.classList.remove("show");
   nb.textContent=(S.i===S.cards.length-1)?"結果を見る →":"次へ →";
+  const dk=document.getElementById("quizDk"); dk.classList.add("show");
+  dk.onclick=()=>{ if(S.answered)return; renderOptions(opts,card); answerQuiz(null,card,opts,true); };
   if(settings.quizTime) startTimer(settings.quizTime,"quizTimerBar","quizTimerFill",()=>{ if(!S.answered) answerQuiz(null,card,opts); });
   else document.getElementById("quizTimerBar").style.display="none";
 }
@@ -990,24 +1042,29 @@ function renderOptions(opts,card){
   box.innerHTML=opts.map((o,i)=>`<button class="opt" data-i="${i}"><span class="num">${i+1}</span><span>${esc(o)}</span></button>`).join("");
   box.querySelectorAll(".opt").forEach((b,i)=>b.onclick=()=>{ if(!S.answered) answerQuiz(opts[i],card,opts); });
 }
-function answerQuiz(choice,card,opts){
+function answerQuiz(choice,card,opts,dontknow){
   S.answered=true; stopTimer();
-  const correct=choice===card.q.answer; const t=applyAnswer(card.id,correct);
-  S.trans.push({q:card.q,id:card.id,code:card.code,before:t.before,after:t.after,correct});
-  if(correct){ S.correct++; S.streak++; } else S.streak=0;
-  playSound(correct);
+  document.getElementById("quizDk").classList.remove("show");
+  const correct=(!dontknow)&&(choice===card.q.answer);
+  if(dontknow){ S.dontknow=(S.dontknow||0)+1; }   /* わからない＝未学習。applyAnswer も統計も streak も一切触らない */
+  else{
+    const t=applyAnswer(card.id,correct);
+    S.trans.push({q:card.q,id:card.id,code:card.code,before:t.before,after:t.after,correct});
+    if(correct){ S.correct++; S.streak++; } else S.streak=0;
+    playSound(correct);
+  }
   document.querySelectorAll("#quizOpts .opt").forEach(b=>{ const txt=b.querySelector("span:last-child").textContent;
     if(txt===card.q.answer){ b.classList.add("correct"); const m=document.createElement("span"); m.className="mk"; m.textContent="◎"; b.appendChild(m); }
     else if(txt===choice){ b.classList.add("wrong"); const m=document.createElement("span"); m.className="mk"; m.textContent="×"; b.appendChild(m); }
     else b.classList.add("dim"); });
   const ex=document.getElementById("quizExplain");
-  ex.innerHTML=`<div class="ex-h" style="color:${correct?'var(--ok)':'var(--ng)'}">${correct?"正解 ◎":"不正解　正解: "+esc(card.q.answer)}</div>${esc(card.q.explain||card.q.answer)}`;
+  ex.innerHTML=`<div class="ex-h" style="color:${dontknow?'var(--sub)':(correct?'var(--ok)':'var(--ng)')}">${dontknow?"わからない（未学習）　正解: "+esc(card.q.answer):(correct?"正解 ◎":"不正解　正解: "+esc(card.q.answer))}</div>${esc(card.q.explain||card.q.answer)}`;
   ex.classList.add("show");
+  setupMemo(card.id);                       /* わからない時もメモは通常どおり閲覧・編集・保存できる */
   document.getElementById("quizFill").style.width=((S.i+1)/S.cards.length*100)+"%";
-  if(!S.reviewAll&&S.chapter) progress.resume[S.chapter.code+":"+S.deck]=card.idx;
-  saveProgress();
+  if(!dontknow){ if(!S.reviewAll&&S.chapter) progress.resume[S.chapter.code+":"+S.deck]=card.idx; saveProgress(); }
   const nb=document.getElementById("quizNext"); nb.classList.add("show");
-  nb.onclick=()=>{ S.i++; if(S.i>=S.cards.length) endSession(); else renderQuiz(); };
+  nb.onclick=()=>{ flushMemo(); S.i++; if(S.i>=S.cards.length) endSession(); else renderQuiz(); };
 }
 
 /* ---------- FLASHCARD ---------- */
@@ -1047,20 +1104,21 @@ function gradeFlash(ok){ if(!S.flip)flip();
 function toggleStock(id){ if(progress.stocked[id]) delete progress.stocked[id]; else progress.stocked[id]=1; saveProgress(); }
 document.getElementById("quizClose").onclick=goHome;
 document.getElementById("flashClose").onclick=goHome;
-function goHome(){ stopTimer(); renderHome(); show("homeScreen"); }
+function goHome(){ flushMemo(); stopTimer(); renderHome(); show("homeScreen"); }
 
 /* ---------- RESULT ---------- */
 function endSession(){ stopTimer(); show("res1Screen"); renderResult1(); }
 function renderResult1(){
-  const total=S.cards.length, rate=Math.round(S.correct/total*100);
+  const dk=S.dontknow||0, total=S.cards.length-dk, rate=total>0?Math.round(S.correct/total*100):0;
   const mood=rate>=90?"great":rate>=60?"good":rate>=30?"ok":"sad";
   const titles=rate>=90?["満点級！","天才！"]:rate>=60?["いいね！","その調子！"]:rate>=30?["ナイス！","コツコツ！"]:["ドンマイ！","復習しよ！"];
   document.getElementById("res1Praise").innerHTML=`<div class="pk">よく頑張りました</div><div class="pt">${titles[1]}</div><div class="pm">正答率 ${rate}%</div>`;
   document.getElementById("res1Mascot").innerHTML=mascot(mood,120);
   const sec=Math.max(1,Math.round((Date.now()-S.t0)/1000));
   document.getElementById("res1Stat").innerHTML=
-    `<div class="sc-badge">わかった数</div><div class="sc-big">${S.correct}<small>/${total}</small></div>
-     <div class="sc-row"><div class="sc-cell"><div class="v">${sec}<small style="font-size:11px">秒</small></div><div class="k">解答時間</div></div>
+    `<div class="sc-badge">わかった数</div><div class="sc-big">${S.correct}<small>/${total}</small></div>`+
+    (dk>0?`<div style="font-size:12px;color:var(--sub);font-weight:700;margin-top:-2px">わからない ${dk}問（未学習・集計対象外）</div>`:``)+
+    `<div class="sc-row"><div class="sc-cell"><div class="v">${sec}<small style="font-size:11px">秒</small></div><div class="k">解答時間</div></div>
        <div class="sc-cell"><div class="v">${dailyCount()}<small style="font-size:11px">問</small></div><div class="k">本日の累計</div></div></div>`;
   const wrong=S.trans.filter(t=>!t.correct);
   const wd=document.getElementById("res1Wrong");
@@ -1069,7 +1127,7 @@ function renderResult1(){
       wrong.map(t=>`<div class="wrong-item"><div class="wi-q">${qtextHTML(t.q.q)}</div><div class="wi-a">${esc(t.q.answer)}</div></div>`).join("");
     document.getElementById("reviewWrong").onclick=()=>{
       S.cards=shuffle(wrong.map(t=>({q:t.q,idx:(t.id.split('#')[1]|0),id:t.id,code:t.code})));
-      S.i=0;S.correct=0;S.streak=0;S.trans=[];S.round++;S.t0=Date.now(); if(S.mode==="quiz")runQuiz(); else runFlash(); };
+      S.i=0;S.correct=0;S.dontknow=0;S.streak=0;S.trans=[];S.round++;S.t0=Date.now(); if(S.mode==="quiz")runQuiz(); else runFlash(); };
   } else wd.innerHTML="";
   document.getElementById("res1Next").onclick=()=>{ show("res2Screen"); renderResult2(); };
 }
@@ -1110,7 +1168,7 @@ function renderResult2(){
     main.textContent=`続けて特訓（残り${remain}問）`;
     main.onclick=()=>{ let cards=shuffle(chapterCards(S.chapter).filter(x=>profOf(x.id)<=1)).map(x=>({q:x.q,idx:x.idx,id:x.id,code:S.chapter.code}));
       if(settings.count>0&&cards.length>settings.count) cards=cards.slice(0,settings.count);
-      S.cards=cards;S.i=0;S.correct=0;S.streak=0;S.trans=[];S.round++;S.t0=Date.now(); if(S.mode==="quiz")runQuiz(); else runFlash(); };
+      S.cards=cards;S.i=0;S.correct=0;S.dontknow=0;S.streak=0;S.trans=[];S.round++;S.t0=Date.now(); if(S.mode==="quiz")runQuiz(); else runFlash(); };
     sub.style.display="block"; sub.textContent="ホームに戻る"; sub.onclick=goHome;
   } else { main.textContent="ホームに戻る"; main.onclick=goHome;
     sub.style.display="block"; sub.textContent="もう一度（同じ範囲）";
